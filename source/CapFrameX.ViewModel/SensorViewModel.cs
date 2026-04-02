@@ -39,6 +39,7 @@ namespace CapFrameX.ViewModel
         private readonly CaptureManager _captureManager;
         private readonly IRecordManager _recordManager;
         private readonly ApplicationState _applicationState;
+        private readonly CustomSensorConfig _customSensorConfig;
         private ISession _session;
         private ISession _previousSession;
         private int _selectedSensorEntryIndex;
@@ -49,6 +50,8 @@ namespace CapFrameX.ViewModel
         private string _aggregationButtonText = "Evaluate" + Environment.NewLine + "multiple entries";
         private string _sensorStatisticsText = "Sensor statistics for selected record";
         private bool _selectedRecordChanged;
+        private CustomSensorEntryWrapper _selectedCustomSensor;
+        private int _selectedCustomSensorIndex;
 
         public IFileRecordInfo RecordInfo { get; private set; }
 
@@ -165,6 +168,29 @@ namespace CapFrameX.ViewModel
         public ObservableCollection<ISensorReportItem> SensorReportItems { get; }
             = new ObservableCollection<ISensorReportItem>();
 
+        public ObservableCollection<CustomSensorEntryWrapper> CustomSensors { get; }
+            = new ObservableCollection<CustomSensorEntryWrapper>();
+
+        public CustomSensorEntryWrapper SelectedCustomSensor
+        {
+            get => _selectedCustomSensor;
+            set
+            {
+                _selectedCustomSensor = value;
+                RaisePropertyChanged();
+            }
+        }
+
+        public int SelectedCustomSensorIndex
+        {
+            get => _selectedCustomSensorIndex;
+            set
+            {
+                _selectedCustomSensorIndex = value;
+                RaisePropertyChanged();
+            }
+        }
+
         public ICommand SaveConfigCommand { get; }
 
         public ICommand ResetToDefaultCommand { get; }
@@ -176,6 +202,12 @@ namespace CapFrameX.ViewModel
         public ICommand AggregateSensorEntriesCommand { get; }
 
         public ICommand OpenConfigFolderCommand { get; }
+
+        public ICommand AddCustomSensorCommand { get; }
+
+        public ICommand RemoveCustomSensorCommand { get; }
+
+        public ICommand SaveCustomSensorsCommand { get; }
 
         public SensorGroupControl SensorSubModelGroupControl { get; }
 
@@ -199,6 +231,8 @@ namespace CapFrameX.ViewModel
             _recordManager = recordManager;
             _applicationState = applicationState;
             _localRecordDataServer = new LocalRecordDataServer(appConfiguration);
+            _customSensorConfig = new CustomSensorConfig(pathService.ConfigFolder);
+            
             // define submodels
             SensorSubModelGroupControl = new SensorGroupControl(this);
 
@@ -213,6 +247,12 @@ namespace CapFrameX.ViewModel
             CopyRawSensorInfoCommand = new DelegateCommand(OnCopyRawSensorInfo);
             ResetToDefaultCommand = new DelegateCommand(OnResetToDefault);
             OpenConfigFolderCommand = new DelegateCommand(OnOpenConfigFolder);
+            
+            AddCustomSensorCommand = new DelegateCommand(OnAddCustomSensor);
+            RemoveCustomSensorCommand = new DelegateCommand(OnRemoveCustomSensor, () => SelectedCustomSensor != null)
+                .ObservesProperty(() => SelectedCustomSensor);
+            SaveCustomSensorsCommand = new DelegateCommand(async () => await OnSaveCustomSensors());
+            
             AggregateSensorEntriesCommand = new DelegateCommand(() =>
             {
                 Task.Run(() =>
@@ -243,12 +283,95 @@ namespace CapFrameX.ViewModel
 
             _sensorEntryProvider.ConfigChanged = () => SaveButtonIsEnable = true;
             SubscribeToUpdateSession();
+            LoadCustomSensors();
 
             Task.Run(async () =>
             {
                 await _sensorService.SensorServiceCompletionSource.Task;
                 await SetWrappedSensorEntries();
             });
+        }
+
+        private void LoadCustomSensors()
+        {
+            CustomSensors.Clear();
+            foreach (var customSensor in _customSensorConfig.GetCustomSensors())
+            {
+                CustomSensors.Add(new CustomSensorEntryWrapper
+                {
+                    Name = customSensor.Name,
+                    Formula = customSensor.Formula,
+                    Unit = customSensor.Unit,
+                    IsActive = customSensor.IsActive
+                });
+            }
+        }
+
+        private void OnAddCustomSensor()
+        {
+            CustomSensors.Add(new CustomSensorEntryWrapper
+            {
+                Name = "New Custom Sensor",
+                Formula = "[GPU Core]",
+                Unit = "%",
+                IsActive = true
+            });
+        }
+
+        private void OnRemoveCustomSensor()
+        {
+            if (SelectedCustomSensor != null)
+            {
+                CustomSensors.Remove(SelectedCustomSensor);
+            }
+        }
+
+        private async Task OnSaveCustomSensors()
+        {
+            try
+            {
+                foreach (var wrapper in CustomSensors)
+                {
+                    var existing = _customSensorConfig.GetCustomSensors()
+                        .FirstOrDefault(s => s.Identifier == wrapper.Identifier);
+                    
+                    if (existing == null)
+                    {
+                        _customSensorConfig.AddCustomSensor(new CustomSensorEntry
+                        {
+                            Name = wrapper.Name,
+                            Formula = wrapper.Formula,
+                            Unit = wrapper.Unit,
+                            IsActive = wrapper.IsActive
+                        });
+                    }
+                    else
+                    {
+                        _customSensorConfig.UpdateCustomSensor(existing.Name, new CustomSensorEntry
+                        {
+                            Name = wrapper.Name,
+                            Formula = wrapper.Formula,
+                            Unit = wrapper.Unit,
+                            IsActive = wrapper.IsActive
+                        });
+                    }
+                }
+
+                var toRemove = _customSensorConfig.GetCustomSensors()
+                    .Where(cs => !CustomSensors.Any(w => w.Name == cs.Name))
+                    .ToList();
+                
+                foreach (var sensor in toRemove)
+                {
+                    _customSensorConfig.RemoveCustomSensor(sensor.Name);
+                }
+
+                await _customSensorConfig.Save();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error saving custom sensors");
+            }
         }
 
         private void OnResetToDefault()

@@ -43,6 +43,8 @@
             <ColumnDefinition Width="460"/>
             <ColumnDefinition Width="10"/>
             <ColumnDefinition Width="460"/>
+            <ColumnDefinition Width="10"/>
+            <ColumnDefinition Width="460"/>
         </Grid.ColumnDefinitions>
         <Border BorderBrush="{DynamicResource MaterialDesignBody}" BorderThickness="0.3" Grid.Row="1" Grid.Column="0" >
             <DockPanel Margin="0 10 0 10">
@@ -408,6 +410,87 @@
                             </TextBlock>
                         </ComboBox.ToolTip>
                     </ComboBox>
+                </Grid>
+            </DockPanel>
+        </Border>
+
+        <Border BorderBrush="{DynamicResource MaterialDesignBody}" BorderThickness="0.3" Grid.Row="1" Grid.Column="4" >
+            <DockPanel Margin="0 10 0 10">
+                <Grid DockPanel.Dock="Top">
+                    <TextBlock Margin="15 0 0 10" HorizontalAlignment="Left" Text="Custom sensors" FontSize="16" VerticalAlignment="Center" Foreground="{DynamicResource MaterialDesignBody}"/>
+                </Grid>
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="1*"></RowDefinition>
+                        <RowDefinition Height="Auto"></RowDefinition>
+                    </Grid.RowDefinitions>
+                    <DataGrid Grid.Row="0" x:Name="CustomSensorDataGrid" FocusVisualStyle="{x:Null}" Height="Auto" Width="440" FontSize="12"
+					         SelectedIndex="{Binding SelectedCustomSensorIndex}" SelectedItem="{Binding SelectedCustomSensor}" ItemsSource="{Binding CustomSensors}"
+					         CanUserSortColumns="False" CanUserAddRows="False" CanUserDeleteRows="False" AutoGenerateColumns="False"
+					         materialDesign:DataGridAssist.CellPadding="15 5 0 0" materialDesign:DataGridAssist.ColumnHeaderPadding="15 5 0 10" IsSynchronizedWithCurrentItem="False"
+					         ScrollViewer.VerticalScrollBarVisibility="Auto" ScrollViewer.HorizontalScrollBarVisibility="Visible" ScrollViewer.CanContentScroll="True"
+                             Style="{StaticResource MaterialDesignDataGrid}"
+                             Background="{DynamicResource MaterialDesignBackground}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Binding="{Binding Name, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                Header="Name" MinWidth="100" Width="*"/>
+                            <DataGridTextColumn Binding="{Binding Formula, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                Header="Formula" MinWidth="150" Width="*">
+                                <DataGridTextColumn.HeaderStyle>
+                                    <Style TargetType="DataGridColumnHeader" BasedOn="{StaticResource MaterialDesignDataGridColumnHeader}">
+                                        <Setter Property="ToolTip">
+                                            <Setter.Value>
+                                                <ToolTip MaxWidth="300">
+                                                    <TextBlock Text="Use [Sensor Name] to reference sensors. Example: [GPU Core] * 100 / 2500" TextWrapping="Wrap"/>
+                                                </ToolTip>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </DataGridTextColumn.HeaderStyle>
+                            </DataGridTextColumn>
+                            <DataGridTextColumn Binding="{Binding Unit, Mode=TwoWay, UpdateSourceTrigger=LostFocus}"
+                                                Header="Unit" MinWidth="50" Width="60"/>
+                            <DataGridCheckBoxColumn Binding="{Binding IsActive, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}" 
+                                                    Header="Active" Width="60">
+                                <DataGridCheckBoxColumn.CellStyle>
+                                    <Style TargetType="DataGridCell">
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="{x:Type DataGridCell}">
+                                                    <Grid Background="{TemplateBinding Background}">
+                                                        <ContentPresenter VerticalAlignment="Center" />
+                                                    </Grid>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                        <Style.Triggers>
+                                            <Trigger Property="DataGridCell.IsSelected" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource MaterialDesignSelection}" />
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGridCheckBoxColumn.CellStyle>
+                            </DataGridCheckBoxColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+
+                    <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0 15 0 10">
+                        <Button Width="28" Height="28" Margin="5" Style="{StaticResource MaterialDesignFloatingActionMiniAccentButton}"
+                                ToolTip="Add new custom sensor" Command="{Binding AddCustomSensorCommand}"
+                                materialDesign:RippleAssist.Feedback="#DD000000">
+                            <materialDesign:PackIcon Kind="Plus" Height="22" Width="22" />
+                        </Button>
+                        <Button Width="28" Height="28" Margin="5" Style="{StaticResource MaterialDesignFloatingActionMiniAccentButton}"
+                                ToolTip="Remove selected custom sensor" Command="{Binding RemoveCustomSensorCommand}"
+                                materialDesign:RippleAssist.Feedback="#DD000000">
+                            <materialDesign:PackIcon Kind="Minus" Height="22" Width="22" />
+                        </Button>
+                        <Button Width="28" Height="28" Margin="5" Style="{StaticResource MaterialDesignFloatingActionMiniAccentButton}"
+                                ToolTip="Save custom sensors" Command="{Binding SaveCustomSensorsCommand}"
+                                materialDesign:RippleAssist.Feedback="#DD000000">
+                            <materialDesign:PackIcon Kind="ContentSaveSettings" Height="22" Width="22" />
+                        </Button>
+                    </StackPanel>
                 </Grid>
             </DockPanel>
         </Border>

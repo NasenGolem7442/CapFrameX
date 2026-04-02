@@ -31,6 +31,7 @@ namespace CapFrameX.Sensor
         private readonly IAppConfiguration _appConfiguration;
         private readonly ILogger<SensorService> _logger;
         private readonly IDisposable _logDisposable;
+        private readonly CustomSensorConfig _customSensorConfig;
 
         private Computer _computer;
         private IPmcReaderSensorPlugin _pmcReaderPlugin;
@@ -72,12 +73,13 @@ namespace CapFrameX.Sensor
            = new TaskCompletionSource<bool>();
 
         public SensorService(IAppConfiguration appConfig, ISensorConfig sensorConfig,
-            IRTSSService rTSSService, ILogger<SensorService> logger)
+            IRTSSService rTSSService, ILogger<SensorService> logger, IPathService pathService)
         {
             _appConfiguration = appConfig;
             _sensorConfig = sensorConfig;
             _rTSSService = rTSSService;
             _logger = logger;
+            _customSensorConfig = new CustomSensorConfig(pathService.ConfigFolder);
             _currentOSDTimespan = TimeSpan.FromMilliseconds(_appConfiguration.OSDRefreshPeriod);
             _currentLoggingTimespan = TimeSpan.FromMilliseconds(_appConfiguration.SensorLoggingRefreshPeriod);
             _loggingUpdateSubject = new BehaviorSubject<TimeSpan>(_currentLoggingTimespan);
@@ -315,6 +317,28 @@ namespace CapFrameX.Sensor
                 if (_sensorConfig.IsSelectedForLogging(sensorPair.Key.Identifier))
                 {
                     _sessionSensorDataLive.AddSensorValue(sensorPair.Key, sensorPair.Value);
+                }
+            }
+
+            // Calculate and log custom sensors
+            var sensorValueDict = currentValues.ToDictionary(
+                kvp => kvp.Key.Name,
+                kvp => kvp.Value,
+                StringComparer.OrdinalIgnoreCase);
+
+            foreach (var customSensor in _customSensorConfig.GetCustomSensors())
+            {
+                if (customSensor.IsActive && FormulaEvaluator.TryEvaluate(customSensor.Formula, sensorValueDict, out float result))
+                {
+                    var customSensorEntry = new SensorEntry
+                    {
+                        Identifier = customSensor.Identifier,
+                        Name = customSensor.Name,
+                        SensorType = customSensor.Unit,
+                        HardwareType = "Custom",
+                        HardwareName = "Custom Sensors"
+                    };
+                    _sessionSensorDataLive.AddSensorValue(customSensorEntry, result);
                 }
             }
         }
