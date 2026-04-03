@@ -48,7 +48,7 @@ namespace CapFrameX.Sensor
             {
                 var sensorName = match.Groups[1].Value;
                 var matchingKey = sensorValues.Keys.FirstOrDefault(k => 
-                    k.Contains(sensorName, StringComparison.OrdinalIgnoreCase));
+                    k.IndexOf(sensorName, StringComparison.OrdinalIgnoreCase) >= 0);
                 
                 if (matchingKey != null)
                 {
